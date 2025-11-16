@@ -25,20 +25,25 @@ sensors_event_t pressure_event;
 #define PTT 5             // PTT
 
 // Temporisations (msec)
-unsigned long Duree_Point = 100;    // Durée du point en ms (100 -> 11.5 mots/min)
-unsigned long TA_MSG = 15000;       // période de répétition du message = nb WDT délais
-unsigned long TA_Ini = 2000;        // Temps d'attente initial en ms
-unsigned long TA_CW = 5000;         // Temps d'attente entre PTT et CW en ms
-unsigned long TA_RX = 10000;         // Temps d'attente entre CW et RX
+unsigned long Duree_Point = 100;  // Durée du point en ms (100 -> 11.5 mots/min)
+unsigned long TA_MSG = 15000;     // période de répétition du message = nb WDT délais
+unsigned long TA_Ini = 2000;      // Temps d'attente initial en ms
+unsigned long TA_CW = 5000;       // Temps d'attente entre PTT et CW en ms
+unsigned long TA_RX = 10000;      // Temps d'attente entre CW et RX
 
-bool Press_F = true;                // 1 envoi de la pression, 0 pas d'envoi
-bool TX_ON = false;                 // 0 TX coupé entre envois messages, 1 TX toujours en émission
+bool Press_F = true;              // 1 envoi de la pression, 0 pas d'envoi
+bool TX_ON = false;               // 0 TX coupé entre envois messages, 1 TX toujours en émission
 
-bool Temp_F = true;                 // 1 envoi de la température, 0 pas d'envoi
-double temp_maxraw = 1023;          // Valeur Max de l'ADC : par exemple 1023 == 5V
+// Température
+bool Temp_F = true;               // 1 envoi de la température, 0 pas d'envoi
+double temp_maxraw = 1023;        // Valeur Max de l'ADC : par exemple 1023 == 5V
 double temp_minraw = 0;           // Valeur Mini de l'ADC : par exemple 205 == 1V
-double temp_maxEU = 50;            // Valeur de l'échelle maxi : par exemple 100 °C
-double temp_minEU = -20;              // Valeur de l'échelle mini : par exemple 0 °C
+double temp_maxEU = 50;           // Valeur de l'échelle maxi : par exemple 100 °C
+double temp_minEU = -20;          // Valeur de l'échelle mini : par exemple 0 °C
+double temp_offset = 0;           // Ajustement du zéro de calibration de la température extérieure
+
+//Pression
+double press_offset = 9.55;      // Ajustement du zéro de calibration de la pression atmosphèrique
 
 int iTab;
 byte Code;
@@ -49,55 +54,59 @@ unsigned long delai=0;
 // Les options de température et pression se rajouteront d'elle même si activé
 // mettre un caractère = pour faire un retour à la ligne (_ . . . _)
 
-String MsgBase = "F6KOH LE HAVRE LOC JN09CM EN TEST = PSE QSL TO BALISE@SHTSF.FR";
+String MsgBase = "F6ZAQ LE HAVRE LOC JN09CM = PSE QSL TO BEACONSPOT.UK";
+//String MsgBase = "-./01323456789:;=@ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 // Codage de l'alphabet par Hans Summers G0UPL et Stephen Farthing G0XAR
 // de gauche à droite, après le premier 0
 // 0 = dot, 1 = dash
 const static byte CodeCW[]={
-  0b11011111,  // 0
-  0b11001111,  // 1
-  0b11000111,  // 2
-  0b11000011,  // 3
-  0b11000001,  // 4
-  0b11000000,  // 5
-  0b11010000,  // 6
-  0b11011000,  // 7
-  0b11011100,  // 8
-  0b11011110,  // 9
-  0b10111000,  // :
-  0b10101010,  // ;
+  0b10100001,  // - -> -....-
+  0b10010101,  // . -> .-.-.-
+  0b11010010,  // / -> -..-.
+  0b11011111,  // 0 -> -----
+  0b11001111,  // 1 -> .----
+  0b11000111,  // 2 -> ..---
+  0b11000011,  // 3 -> ...--
+  0b11000001,  // 4 -> ....-
+  0b11000000,  // 5 -> .....
+  0b11010000,  // 6 -> -....
+  0b11011000,  // 7 -> --...
+  0b11011100,  // 8 -> ---..
+  0b11011110,  // 9 -> ----.
+  0b10111000,  // : -> ---...
+  0b10101010,  // ; -> -.-.-.
   0b10001100,  // < -> ?
-  0b11010001,  // =
+  0b11010001,  // = -> -...-
   0b10001100,  // > -> ?
-  0b10001100,  // ?
-  0b10011010,  // @ -> ?
-  0b11111001,  // A
-  0b11101000,  // B
-  0b11101010,  // C
-  0b11110100,  // D
-  0b11111100,  // E
-  0b11100010,  // F
-  0b11110110,  // G
-  0b11100000,  // H
-  0b11111000,  // I
-  0b11100111,  // J
-  0b11110101,  // K
-  0b11100100,  // L
-  0b11111011,  // M
-  0b11111010,  // N
-  0b11110111,  // O
-  0b11100110,  // P
-  0b11101101,  // Q
-  0b11110010,  // R
-  0b11110000,  // S
-  0b11111101,  // T
-  0b11110001,  // U
-  0b11100001,  // V
-  0b11110011,  // W
-  0b11101001,  // X
-  0b11101011,  // Y
-  0b11101100,  // Z
+  0b10001100,  // ? -> ..--..
+  0b10011010,  // @ -> .--.-.
+  0b11111001,  // A -> .-
+  0b11101000,  // B -> -...
+  0b11101010,  // C -> -.-.
+  0b11110100,  // D -> -..
+  0b11111100,  // E -> .
+  0b11100010,  // F -> ..-.
+  0b11110110,  // G -> --.
+  0b11100000,  // H -> ....
+  0b11111000,  // I -> ..
+  0b11100111,  // J -> .---
+  0b11110101,  // K -> -.-
+  0b11100100,  // L -> .-..
+  0b11111011,  // M -> --
+  0b11111010,  // N -> -.
+  0b11110111,  // O -> ---
+  0b11100110,  // P -> .--.
+  0b11101101,  // Q -> --.-
+  0b11110010,  // R -> .-.
+  0b11110000,  // S -> ...
+  0b11111101,  // T -> -
+  0b11110001,  // U -> ..-
+  0b11100001,  // V -> ...-
+  0b11110011,  // W -> .--
+  0b11101001,  // X -> -..-
+  0b11101011,  // Y -> -.--
+  0b11101100,  // Z -> --..
 };
 
 
@@ -150,7 +159,7 @@ void setup()
   pinMode(12,INPUT_PULLUP);
 
 #if Debug==1
-  Serial.begin(115200);
+  Serial.begin(9600);
 #endif
   if (Press_F)
   {
@@ -215,7 +224,7 @@ void loop()
   if (Press_F)
   {
     bmp_pressure->getEvent(&pressure_event);
-    double Pressure = String(pressure_event.pressure).toDouble();
+    double Pressure = String(pressure_event.pressure).toDouble() + press_offset;
     Msg += " = QNH " + String(Pressure,0) + " HPA"; // Ajout de la pression barométrique au message de la balise. On en profite pour retirer les décimales
   }
 
@@ -235,15 +244,15 @@ void loop()
     }
     else
     {
-      iTab=Msg[i]-'0'; // On ramène la valeur ASCII sur une base 0, par exemple '0' = 0 , 'A' = 17, etc
+      iTab=Msg[i]-'-'; // On ramène la valeur ASCII sur une base 0, par exemple '0' = 0 , 'A' = 17, etc
       if (iTab<0 || iTab>sizeof(CodeCW)) // On test si le char est hors de la plage du tablau de correspondance
       {
-        if (Msg[i] == '.')
-          Code = 0b10010101;      // .
-        else if (Msg[i] == '/')
-          Code = 0b11010010;      // /
-        else
-          Code = 0b10001100;      // ? pour caractères non pris en compte
+        //if (Msg[i] == '.')
+        //  Code = 0b10010101;      // .
+        //else if (Msg[i] == '/')
+        //  Code = 0b11010010;      // /
+        //else
+        Code = 0b10001100;      // ? pour caractères non pris en compte
       }
       else
       {
