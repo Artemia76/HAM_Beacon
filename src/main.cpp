@@ -45,7 +45,7 @@ double temp_offset = 0;           // Ajustement du zéro de calibration de la te
 //Pression
 double press_offset = 9.55;      // Ajustement du zéro de calibration de la pression atmosphèrique
 
-int iTab;
+unsigned char ucTab;
 byte Code;
 int iB;
 unsigned long delai=0;
@@ -217,7 +217,7 @@ void loop()
     int snr = analogRead(A3); // Lecture de la valeur brute ADC (0 - 1023 <=> 0 - 5 V)
     // Mise à l'échelle de la température
     double Temp = ((snr - temp_minraw)/(temp_maxraw - temp_minraw))*(temp_maxEU - temp_minEU) + temp_minEU;
-    Msg += " = OAT " + String(Temp, 0) + " DEGC"; // Ajout de la température au message de la balise
+    Msg += " = TEMP " + String(Temp, 0) + " DEGC"; // Ajout de la température au message de la balise
   }
 
   // Lecture de la pression barométrique si activée
@@ -233,7 +233,7 @@ void loop()
 #endif
 
   // On boucle pour chaque caractère du message
-  for(int i=0;i<(Msg.length());i++)
+  for(size_t i=0;i<(Msg.length());i++)
   {
 #if Debug==1
     Serial.print(Msg[i]);
@@ -244,8 +244,8 @@ void loop()
     }
     else
     {
-      iTab=Msg[i]-'-'; // On ramène la valeur ASCII sur une base 0, par exemple '0' = 0 , 'A' = 17, etc
-      if (iTab<0 || iTab>sizeof(CodeCW)) // On test si le char est hors de la plage du tablau de correspondance
+      ucTab=Msg[i]-'-'; // On ramène la valeur ASCII sur une base 0, par exemple '0' = 0 , 'A' = 17, etc
+      if (ucTab<0 || ucTab>sizeof(CodeCW)) // On test si le char est hors de la plage du tablau de correspondance
       {
         //if (Msg[i] == '.')
         //  Code = 0b10010101;      // .
@@ -256,7 +256,7 @@ void loop()
       }
       else
       {
-        Code = CodeCW[iTab]; // Si non , On récupère le code correspondant dans le tableau CW
+        Code = CodeCW[ucTab]; // Si non , On récupère le code correspondant dans le tableau CW
       }
       iB=8;
       do            // recherche premier bit = 0 dans le code
